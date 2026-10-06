@@ -191,15 +191,26 @@
 
 <script>
     // 💡【追記】自分だけが使えるようにパスワードロックをかける（Basic認証風）
-(function() {
-    // 好きなパスワードをここに設定してください（例: "koto123"）
-    const MY_PASSWORD = "ここに好きなパスワードを入力"; 
+// 💡【暗号化対応】ソースを見られても絶対にパスワードがバレないロック
+(async function() {
+    
+    const HASHED_PASSWORD = "2ecefe59ab6ae4e734bb1adec3bbb706be8c6fae0b39500d05f7a6665ffa7390"; 
 
-    // セッション（ブラウザを閉じるまで）に保存して、毎回聞かれないようにする
+    
+    async function sha256(string) {
+        const utf8 = new TextEncoder().encode(string);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     if (sessionStorage.getItem("koto_auth") !== "true") {
         let input = prompt("自分専用アプリです。パスワードを入力してください：");
-        while (input !== MY_PASSWORD) {
+        let inputHash = await sha256(input || "");
+
+        while (inputHash !== HASHED_PASSWORD) {
             input = prompt("❌ パスワードが違います。もう一度入力してください：");
+            inputHash = await sha256(input || "");
         }
         sessionStorage.setItem("koto_auth", "true");
     }
