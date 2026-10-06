@@ -361,7 +361,32 @@
         searchWords();
     });
 
-    initApp();
+    // 💡【爆速起動化】データをiPhoneに永続キャッシュする処理
+    function initApp() {
+        // もしすでにiPhone内にデータが保存されていれば、それを使って一瞬で起動する
+        const cachedData = localStorage.getItem("koto_words_cache");
+        if (cachedData) {
+            kotodamanWords = JSON.parse(cachedData);
+            statusLabel.textContent = `盤面の文字を入力（データ: ${kotodamanWords.length.toLocaleString()}語）`;
+            return;
+        }
+
+        // 初回のみ、貼り付けられたデータを整理してiPhoneに保存する
+        kotodamanWords = [...new Set(rawData.map(item => {
+            if (Array.isArray(item) && item.length > 0) return String(item).trim();
+            if (typeof item === 'string') return item.trim();
+            return '';
+        }))].filter(Boolean);
+
+        statusLabel.textContent = `盤面の文字を入力（データ: ${kotodamanWords.length.toLocaleString()}語）`;
+        
+        // iPhoneの保存庫に文字データを丸ごと保存（次回からのダウンロードをゼロにする）
+        try {
+            localStorage.setItem("koto_words_cache", JSON.stringify(kotodamanWords));
+        } catch(e) {
+            console.log("キャッシュ保存に失敗", e);
+        }
+    }
     searchWords();
 </script>
 </body>
