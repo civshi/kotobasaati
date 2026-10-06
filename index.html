@@ -197,6 +197,10 @@
     const HASHED_PASSWORD = "2ecefe59ab6ae4e734bb1adec3bbb706be8c6fae0b39500d05f7a6665ffa7390"; 
 
     
+   (async function() {
+    // あなたの暗号化パスワード（ハッシュ値）
+    const HASHED_PASSWORD = "303032d8479e56ee43ca41cfb1c19b0da2ff1441865c3bdfcd1c52119c8d5d4d"; 
+
     async function sha256(string) {
         const utf8 = new TextEncoder().encode(string);
         const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
@@ -204,6 +208,13 @@
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
+    // 💡 iPhoneの半永久的な記憶エリア（localStorage）をチェック
+    // 過去に一度でも正しいパスワードを打っていれば、自動的に認証済みにする
+    if (localStorage.getItem("koto_permanent_auth") === "true") {
+        sessionStorage.setItem("koto_auth", "true");
+    }
+
+    // 認証が済んでいない（初めての起動、または他人の端末）場合だけパスワードを聞く
     if (sessionStorage.getItem("koto_auth") !== "true") {
         let input = prompt("自分専用アプリです。パスワードを入力してください：");
         let inputHash = await sha256(input || "");
@@ -212,8 +223,12 @@
             input = prompt("❌ パスワードが違います。もう一度入力してください：");
             inputHash = await sha256(input || "");
         }
+        
+        // 正しいパスワードが打たれたら、このiPhoneだけに「永久の鍵」を記憶させる
         sessionStorage.setItem("koto_auth", "true");
+        localStorage.setItem("koto_permanent_auth", "true");
     }
+})();
 })();
     // 🔽🔽【ここにあなたのデータをコピペしてください】🔽🔽
     const kotodamanWords = [
@@ -308,18 +323,40 @@
         }
     }
 
-    // 入力制御
+     // 💡【iPhone 2重入力対策版】マス目の入力制御（自動フォーカス移動）
     inputs.forEach((input, index) => {
+        // iPhoneの予測変換や文字化けを防ぐ設定をプログラムから強制付与
+        input.setAttribute("autocorrect", "off");
+        input.setAttribute("autocapitalize", "off");
+        input.setAttribute("autocomplete", "off");
+        input.setAttribute("spellcheck", "false");
+
         input.addEventListener('input', () => {
             searchWords();
-            if (input.value.length >= 1 && index < inputs.length - 1) {
-                inputs[index + 1].focus();
+            
+            if (input.value.length >= 1) {
+                // 万が一2文字以上入ってしまったら1文字目を強制カット
+                if (input.value.length > 1) {
+                    input.value = input.value.charAt(0);
+                }
+                
+                // 💡【重要】setTimeoutで10ミリ秒だけフォーカス移動を遅らせる
+                // これによりiPhoneの未確定入力バッファが次のマスに化けるバグを完全に防ぎます
+                if (index < inputs.length - 1) {
+                    setTimeout(() => {
+                        inputs[index + 1].focus();
+                    }, 10); // 一瞬だけ待つ
+                }
             }
         });
 
+        // 削除（バックスペース）を押したら左へ戻る
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Backspace' && input.value === '' && index > 0) {
-                inputs[index - 1].focus();
+                // 戻るときも一瞬遅らせると挙動が安定します
+                setTimeout(() => {
+                    inputs[index - 1].focus();
+                }, 10);
             }
         });
     });
