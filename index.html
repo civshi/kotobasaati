@@ -317,42 +317,64 @@
         }
     }
 
-     // 💡【iPhone 2重入力対策版】マス目の入力制御（自動フォーカス移動）
+   // 💡【濁点・小文字・iPhone2重入力 完全対応版】マス目の入力制御
     inputs.forEach((input, index) => {
-        // iPhoneの予測変換や文字化けを防ぐ設定をプログラムから強制付与
         input.setAttribute("autocorrect", "off");
         input.setAttribute("autocapitalize", "off");
         input.setAttribute("autocomplete", "off");
         input.setAttribute("spellcheck", "false");
 
+        // iPhoneの日本語入力（変換確定）を検知するためのフラグ
+        let isComposing = false;
+
+        input.addEventListener('compositionstart', () => {
+            isComposing = true; // 文字の入力・変換が始まった
+        });
+
+        input.addEventListener('compositionend', () => {
+            isComposing = false; // 変換が確定した
+            handleInputChange();
+        });
+
         input.addEventListener('input', () => {
+            // 変換中（濁点入力や予測変換の途中）は自動フォーカス移動をストップする
+            if (!isComposing) {
+                handleInputChange();
+            }
+        });
+
+        function handleInputChange() {
             searchWords();
             
             if (input.value.length >= 1) {
-                // 万が一2文字以上入ってしまったら1文字目を強制カット
+                // 万が一2文字以上入ったら1文字目に修正
                 if (input.value.length > 1) {
                     input.value = input.value.charAt(0);
                 }
                 
-                // 💡【重要】setTimeoutで10ミリ秒だけフォーカス移動を遅らせる
-                // これによりiPhoneの未確定入力バッファが次のマスに化けるバグを完全に防ぎます
+                // 💡 濁点ボタンを押す猶予を作るため、150ミリ秒だけ待ってから次のマスへ移動
                 if (index < inputs.length - 1) {
-                    setTimeout(() => {
-                        inputs[index + 1].focus();
-                    }, 10); // 一瞬だけ待つ
+                    // 過去のタイマーをクリアして、連打によるバグを防ぐ
+                    if (input.timeoutId) clearTimeout(input.timeoutId);
+                    
+                    input.timeoutId = setTimeout(() => {
+                        // 150ms後に、まだこのマスが1文字で確定していれば隣へ移動
+                        if (input.value.length === 1 && document.activeElement === input) {
+                            inputs[index + 1].focus();
+                        }
+                    }, 150); // 濁点や小文字を打つための絶妙な時間
                 }
             }
-        });
+        }
 
-        // 削除（バックスペース）を押したら左へ戻る
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Backspace' && input.value === '' && index > 0) {
-                // 戻るときも一瞬遅らせると挙動が安定します
                 setTimeout(() => {
                     inputs[index - 1].focus();
                 }, 10);
             }
         });
+    });
     });
 
     clearBtn.addEventListener('click', () => {
