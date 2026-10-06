@@ -192,11 +192,6 @@
 <script>
     // 💡【追記】自分だけが使えるようにパスワードロックをかける（Basic認証風）
 // 💡【暗号化対応】ソースを見られても絶対にパスワードがバレないロック
-(async function() {
-    
-    const HASHED_PASSWORD = "2ecefe59ab6ae4e734bb1adec3bbb706be8c6fae0b39500d05f7a6665ffa7390"; 
-
-    
    (async function() {
     // あなたの暗号化パスワード（ハッシュ値）
     const HASHED_PASSWORD = "303032d8479e56ee43ca41cfb1c19b0da2ff1441865c3bdfcd1c52119c8d5d4d"; 
@@ -228,7 +223,6 @@
         sessionStorage.setItem("koto_auth", "true");
         localStorage.setItem("koto_permanent_auth", "true");
     }
-})();
 })();
     // 🔽🔽【ここにあなたのデータをコピペしてください】🔽🔽
     const kotodamanWords = [
