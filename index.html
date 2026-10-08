@@ -311,148 +311,183 @@
     `;
     // 🔼🔼【貼り付けエリアここまで】🔼🔼
 
-    let kotodamanWords = [];
+   let kotodamanWords = [];
     let wallPosition = 0;
-
     const statusLabel = document.getElementById('status-label');
     const inputsContainer = document.getElementById('board-inputs');
     const inputs = Array.from(inputsContainer.getElementsByClassName('board-input'));
-const leftWordList = document.getElementById('left-word-list');
-const rightWordList = document.getElementById('right-word-list');
-const leftCountSpan = document.getElementById('left-count');
-const rightCountSpan = document.getElementById('right-count');
-const leftTitleSpan = document.getElementById('left-title');
-const leftContainer = document.getElementById('left-container');
-const rightContainer = document.getElementById('right-container');
-const clearBtn = document.getElementById('clear-btn');
-const wallOptions = document.getElementById('wall-options');
-function initApp() {
-        localStorage.removeItem("koto_words_cache");
+    const leftWordList = document.getElementById('left-word-list');
+    const rightWordList = document.getElementById('right-word-list');
+    const leftCountSpan = document.getElementById('left-count');
+    const rightCountSpan = document.getElementById('right-count');
+    const leftTitleSpan = document.getElementById('left-title');
+    const leftContainer = document.getElementById('left-container');
+    const rightContainer = document.getElementById('right-container');
+    const clearBtn = document.getElementById('clear-btn');
+    const wallOptions = document.getElementById('wall-options');
+
+    // 💡【修正】読み込みエラーを防ぐためキャッシュ強制削除を廃止し、データを安定保持します
+    function initApp() {
+        if (typeof rawStringData === 'undefined') {
+            if (statusLabel) statusLabel.textContent = "⚠️ データの読み込みエラー";
+            return;
+        }
         const matchedWords = rawStringData.match(/[ぁ-んァ-ヶーa-zA-Z0-9]+/g);
         kotodamanWords = matchedWords ? [...new Set(matchedWords.map(w => w.trim()))].filter(Boolean) : [];
-        
-        // 💡 バッククォート「`」で正しく囲み直しました。これでエラーが綺麗に消えます。
         if (statusLabel) statusLabel.textContent = `盤面の文字を入力（データ: ${kotodamanWords.length.toLocaleString()}語）`;
     }
-// 🔍 左右別枠・同時検索ロジック（バグ修正版）
-function searchWords() {
-const rawPattern = inputs.map(input => input.value.trim());
-// 壁の状態に合わせてコンテナの見た目とタイトルを安全に切り替える
-if (leftContainer && rightContainer && leftTitleSpan) {
-leftContainer.style.display = 'flex';
-rightContainer.style.display = wallPosition === 0 ? 'none' : 'flex';
-leftTitleSpan.textContent = wallPosition === 0 ? "該当ワード: " : "左エリア: ";
-}
-if (rawPattern.every(char => char === '')) {
-renderResults([], 'left');
-renderResults([], 'right');
-return;
-}
-// 壁がない（単一エリア）の場合
-if (wallPosition === 0) {
-let lastValidIndex = -1;
-for (let i = 0; i < rawPattern.length; i++) {
-if (rawPattern[i] !== '') lastValidIndex = i;
-}
-const filtered = getMatchingWordsForArea(rawPattern, 0, lastValidIndex);
-filtered.sort((a, b) => b.length - a.length);
-renderResults(filtered.slice(0, 100), 'left', filtered.length);
-return;
-}
-// 壁がある場合、左右のエリアを独立して計算
-const leftStartIndex = 0;
-const leftEndIndex = wallPosition;
-const rightStartIndex = wallPosition - 1;
-const rightEndIndex = 6;
-// 1. 左側エリアの計算
-let leftFiltered = [];
-let leftLastInput = -1;
-for (let i = leftStartIndex; i <= leftEndIndex; i++) {
-if (rawPattern[i] !== '') leftLastInput = i;
-}
-if (leftLastInput !== -1) {
-leftFiltered = getMatchingWordsForArea(rawPattern, leftStartIndex, leftLastInput);
-leftFiltered.sort((a, b) => b.length - a.length);
-}
-// 2. 右側エリアの計算
-let rightFiltered = [];
-let rightLastInput = -1;
-for (let i = rightStartIndex; i <= rightEndIndex; i++) {
-if (rawPattern[i] !== '') rightLastInput = i;
-}
-if (rightLastInput !== -1) {
-rightFiltered = getMatchingWordsForArea(rawPattern, rightStartIndex, rightLastInput);
-rightFiltered.sort((a, b) => b.length - a.length);
-}
-// 3. それぞれの枠に別々に描画する
-renderResults(leftFiltered.slice(0, 100), 'left', leftFiltered.length);
-renderResults(rightFiltered.slice(0, 100), 'right', rightFiltered.length);
-}
-function getMatchingWordsForArea(rawPattern, startIndex, areaLastInput) {
-const results = [];
-const wordsLength = kotodamanWords.length;
-const inputLength = (areaLastInput - startIndex) + 1;
-let maxAreaLength = 7;
-if (wallPosition > 0) {
-maxAreaLength = (startIndex === 0) ? (wallPosition + 1) : (7 - wallPosition + 1);
-}
-for (let i = 0; i < wordsLength; i++) {
-const word = kotodamanWords[i];
-if (word.length < inputLength || word.length > maxAreaLength) continue;
-let isMatch = true;
-for (let j = startIndex; j <= areaLastInput; j++) {
-const patternChar = rawPattern[j];
-const wordChar = word[j - startIndex];
-if (patternChar !== '' && wordChar !== patternChar) {
-isMatch = false; break;
-}
-}
-if (isMatch) results.push(word);
-}
-return results;
-}
- // 💡【エラー修正版】検索結果を画面に描画する処理
-    function renderResults(words, side, totalCount = 0) {
-        const targetList = side === 'left' ? leftWordList : rightWordList;
-        const targetCount = side === 'left' ? leftCountSpan : rightCountSpan;
-        
-        if (!targetList) return;
-        targetList.innerHTML = '';
-        if (targetCount) targetCount.textContent = totalCount;
 
-        if (words.length === 0) {
-            targetList.innerHTML = '<li class="word-item" style="color: var(--text-muted); justify-content: center; font-size:0.85rem;">なし</li>';
+    // 🔍 左右別枠 ＋ 端削りスライド救済ロジック
+    function searchWords() {
+        const rawPattern = inputs.map(input => input.value.trim());
+        if (leftContainer && rightContainer && leftTitleSpan) {
+            leftContainer.style.display = 'flex';
+            rightContainer.style.display = wallPosition === 0 ? 'none' : 'flex';
+            leftTitleSpan.textContent = wallPosition === 0 ? "該当ワード: " : "左エリア: ";
+        }
+        if (rawPattern.every(char => char === '')) {
+            renderResults([], 'left'); renderResults([], 'right'); return;
+        }
+
+        // 壁がない（単一エリア）の場合
+        if (wallPosition === 0) {
+            let lastValidIndex = -1;
+            for (let i = 0; i < rawPattern.length; i++) { if (rawPattern[i] !== '') lastValidIndex = i; }
+            let filtered = getMatchingWordsForArea(rawPattern, 0, lastValidIndex);
+            
+            let isRescue = false;
+            if (filtered.length === 0) {
+                filtered = getPartialMatchingWords(rawPattern, 0, 6);
+                isRescue = true;
+            }
+            filtered.sort((a, b) => b.length - a.length);
+            renderResults(filtered.slice(0, 100), 'left', filtered.length, isRescue); 
             return;
         }
 
+        // 壁がある場合、左右それぞれのエリアを独立計算
+        const leftStartIndex = 0, leftEndIndex = wallPosition;
+        const rightStartIndex = wallPosition - 1, rightEndIndex = 6;
+
+        // 1. 左側エリアの計算
+        let leftFiltered = [], leftLastInput = -1, leftRescue = false;
+        for (let i = leftStartIndex; i <= leftEndIndex; i++) { if (rawPattern[i] !== '') leftLastInput = i; }
+        if (leftLastInput !== -1) {
+            leftFiltered = getMatchingWordsForArea(rawPattern, leftStartIndex, leftLastInput);
+            if (leftFiltered.length === 0) {
+                leftFiltered = getPartialMatchingWords(rawPattern, leftStartIndex, leftEndIndex);
+                leftRescue = true;
+            }
+            leftFiltered.sort((a, b) => b.length - a.length);
+        }
+
+        // 2. 右側エリアの計算
+        let rightFiltered = [], rightLastInput = -1, rightRescue = false;
+        for (let i = rightStartIndex; i <= rightEndIndex; i++) { if (rawPattern[i] !== '') rightLastInput = i; }
+        if (rightLastInput !== -1) {
+            rightFiltered = getMatchingWordsForArea(rawPattern, rightStartIndex, rightLastInput);
+            if (rightFiltered.length === 0) {
+                rightFiltered = getPartialMatchingWords(rawPattern, rightStartIndex, rightEndIndex);
+                rightRescue = true;
+            }
+            rightFiltered.sort((a, b) => b.length - a.length);
+        }
+
+        renderResults(leftFiltered.slice(0, 100), 'left', leftFiltered.length, leftRescue);
+        renderResults(rightFiltered.slice(0, 100), 'right', rightFiltered.length, rightRescue);
+    }
+
+    // 💡 通常の完全一致検索関数
+    function getMatchingWordsForArea(rawPattern, startIndex, areaLastInput) {
+        const results = []; const wordsLength = kotodamanWords.length; const inputLength = (areaLastInput - startIndex) + 1; 
+        let maxAreaLength = 7;
+        if (wallPosition > 0) { maxAreaLength = (startIndex === 0) ? (wallPosition + 1) : (7 - wallPosition + 1); }
+        for (let i = 0; i < wordsLength; i++) {
+            const word = kotodamanWords[i]; if (word.length < inputLength || word.length > maxAreaLength) continue;
+            let isMatch = true;
+            for (let j = startIndex; j <= areaLastInput; j++) {
+                const patternChar = rawPattern[j], wordChar = word[j - startIndex];
+                if (patternChar !== '' && wordChar !== patternChar) { isMatch = false; break; }
+            }
+            if (isMatch) results.push(word);
+        }
+        return results;
+    }
+
+    // 💡【端切り捨て・スライドスキャン対応版】救済用関数
+    function getPartialMatchingWords(rawPattern, startIndex, endIndex) {
+        let firstInput = -1, lastInput = -1;
+        for (let i = startIndex; i <= endIndex; i++) {
+            if (rawPattern[i] !== '') { if (firstInput === -1) firstInput = i; lastInput = i; }
+        }
+        if (firstInput === -1) return [];
+
+        let currentWidth = lastInput - firstInput + 1;
+
+        // 入力された文字幅から1文字ずつスライド縮小して、コンボが崩れない最長ワードを走査
+        for (let width = currentWidth - 1; width >= 2; width--) {
+            const maxShift = currentWidth - width;
+            for (let shift = 0; shift <= maxShift; shift++) {
+                const tempStart = firstInput + shift;
+                const tempEnd = tempStart + width - 1;
+
+                const matchResults = [];
+                const wordsLength = kotodamanWords.length;
+
+                for (let i = 0; i < wordsLength; i++) {
+                    const word = kotodamanWords[i];
+                    if (word.length !== width) continue;
+
+                    let isMatch = true;
+                    for (let j = tempStart; j <= tempEnd; j++) {
+                        const patternChar = rawPattern[j], wordChar = word[j - tempStart];
+                        if (patternChar !== '' && wordChar !== patternChar) { isMatch = false; break; }
+                    }
+                    if (isMatch) matchResults.push(word);
+                }
+                if (matchResults.length > 0) return matchResults;
+            }
+        }
+        return [];
+    }
+
+    // 💡 画面描画関数
+    function renderResults(words, side, totalCount = 0, isRescue = false) {
+        const targetList = side === 'left' ? leftWordList : rightWordList;
+        const targetCount = side === 'left' ? leftCountSpan : rightCountSpan;
+        const targetTitle = side === 'left' ? leftTitleSpan : document.getElementById('right-title');
+        
+        if (!targetList) return; targetList.innerHTML = ''; if (targetCount) targetCount.textContent = totalCount;
+
+        if (targetTitle) {
+            const baseText = side === 'left' ? (wallPosition === 0 ? "該当ワード: " : "左エリア: ") : "右エリア: ";
+            targetTitle.innerHTML = isRescue ? `<span style="color:#ef4444;">${baseText}(救済振分) </span>` : baseText;
+        }
+
+        if (words.length === 0) {
+            targetList.innerHTML = '<li class="word-item" style="color: var(--text-muted); justify-content: center; font-size:0.85rem;">なし</li>'; return;
+        }
         words.forEach(word => {
-            const li = document.createElement('li');
-            li.className = 'word-item';
-            
-            // 💡【重要】ここを正しいバッククォート（`）の記述に修正しました。エディタの赤線が消えます。
+            const li = document.createElement('li'); li.className = 'word-item';
+            if (isRescue) li.style.opacity = "0.7";
             li.innerHTML = `<span class="word-text">${word}</span><span class="word-length">${word.length}文字</span>`;
-            
             targetList.appendChild(li);
         });
     }
-if (wallOptions) {
-wallOptions.addEventListener('click', (e) => {
-const btn = e.target.closest('.wall-btn');
-if (!btn) return;
-wallOptions.querySelectorAll('.wall-btn').forEach(b => b.classList.remove('active'));
-btn.classList.add('active');
-wallPosition = parseInt(btn.dataset.wall, 10) || 0;
-searchWords();
-});
-}
-inputs.forEach((input, index) => {
-input.setAttribute("autocorrect", "off");
-input.setAttribute("autocapitalize", "off");
-input.setAttribute("autocomplete", "off");
-input.setAttribute("spellcheck", "false");
-let isComposing = false;
-input.addEventListener('compositionstart', () => { isComposing = true; });
-input.addEventListener('compositionend', () => { isComposing = false; handleInputChange(); });
+
+    if (wallOptions) {
+        wallOptions.addEventListener('click', (e) => {
+            const btn = e.target.closest('.wall-btn'); if (!btn) return;
+            wallOptions.querySelectorAll('.wall-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active'); wallPosition = parseInt(btn.dataset.wall, 10) || 0; searchWords();
+        });
+    }
+
+    inputs.forEach((input, index) => {
+        input.setAttribute("autocorrect", "off"); input.setAttribute("autocapitalize", "off"); input.setAttribute("autocomplete", "off"); input.setAttribute("spellcheck", "false");
+        let isComposing = false;
+        input.addEventListener('compositionstart', () => { isComposing = true; });
+        input.addEventListener('compositionend', () => { isComposing = false; handleInputChange(); });
 input.addEventListener('input', () => { if (!isComposing) handleInputChange(); });
 function handleInputChange() {
 searchWords();
@@ -460,29 +495,14 @@ if (input.value.length >= 1) {
 if (input.value.length > 1) input.value = input.value.charAt(0);
 if (index < inputs.length - 1) {
 if (input.timeoutId) clearTimeout(input.timeoutId);
-input.timeoutId = setTimeout(() => {
-if (input.value.length === 1 && document.activeElement === input) {
-inputs[index + 1].focus();
-}
-}, 150);
+input.timeoutId = setTimeout(() => { if (input.value.length === 1 && document.activeElement === input) inputs[index + 1].focus(); }, 150);
 }
 }
 }
-input.addEventListener('keydown', (e) => {
-if (e.key === 'Backspace' && input.value === '' && index > 0) {
-setTimeout(() => { inputs[index - 1].focus(); }, 10);
-}
+input.addEventListener('keydown', (e) => { if (e.key === 'Backspace' && input.value === '' && index > 0) { setTimeout(() => { inputs[index - 1].focus(); }, 10); } });
 });
-});
-if (clearBtn) {
-clearBtn.addEventListener('click', () => {
-inputs.forEach(input => input.value = '');
-inputs.focus();
-searchWords();
-});
-}
-initApp();
-searchWords();
+if (clearBtn) { clearBtn.addEventListener('click', () => { inputs.forEach(input => input.value = ''); inputs.focus(); searchWords(); }); }
+initApp(); searchWords();
 
 </script>
 </body>
