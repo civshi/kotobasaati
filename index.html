@@ -240,7 +240,7 @@
         <div class="wall-selector-row">
             <span class="wall-title">壁の位置（ウォールギミック）：</span>
             <div class="wall-options" id="wall-options">
-                <div class="wall-btn active" data-wall="0">壁なし</div>
+                <div class="wall-btn active" data-wall="0">なし</div>
                 <div class="wall-btn" data-wall="1">1</div>
                 <div class="wall-btn" data-wall="2">2</div>
                 <div class="wall-btn" data-wall="3">3</div>
@@ -367,7 +367,7 @@
         }
 
         // 壁がある場合、左右それぞれのエリアを独立計算
-        const leftStartIndex = 0, leftEndIndex = wallPosition;
+        const leftStartIndex = 0, leftEndIndex = wallPosition - 1 ;
         const rightStartIndex = wallPosition - 1, rightEndIndex = 7;
 
         // 1. 左側エリアの計算
