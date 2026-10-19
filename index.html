@@ -230,7 +230,7 @@
     <div class="search-box">
         <div class="label-row">
             <label id="status-label">盤面の文字を入力（空欄はそのまま）</label>
-            <button class="clear-btn" id="clear-btn">一括クリア</button>
+            <button type="button" class="clear-btn" id="clear-btn">一括クリア</button>
         </div>
 
         <div class="board-inputs" id="board-inputs">
@@ -258,9 +258,9 @@
         </div>
     </div>
 
-　　<div class="hand-input-row" style="margin-top: 10px;">
-        <label style="display: block; margin-bottom: 4px;">手持ちの文字（例: あいかうお）</label>
-        <input type="text" id="hand-characters" placeholder="手札の文字を続けて入力" style="width: 100%; padding: 8px; border-radius: 6px; background: #0f172a; color: #fff; border: 1px solid var(--border-color); font-size: 0.9rem;">
+　　<div class="hand-input-row" style="display: flex; flex-direction: column; gap: 6px; background: #0f172a; padding: 10px; border-radius: 10px; border: 1px solid var(--border-color);">
+            <label style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted);">手持ちの文字（例: あいかうお）</label>
+            <input type="text" id="hand-characters" placeholder="手札の文字を続けて入力" style="width: 100%; padding: 8px; border-radius: 6px; background: #1e293b; color: #fff; border: 1px solid var(--border-color); font-size: 0.9rem; outline: none; box-sizing: border-box;">
     </div>
 
     <!-- 左右2つの別枠リストエリア -->
@@ -527,10 +527,15 @@ let kotodamanWords = [];
     // 🛠️ クリアボタンの挙動を調整（手札もリアルタイムにリセット）
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
-        inputs.forEach(input => input.value = '');
-        if (handCharactersInput) {
-            handCharactersInput.value = ''; // 手札の文字をクリア
-        }   
+            // 1. 盤面の文字をクリア
+            inputs.forEach(input => input.value = '');
+            
+            // 2. 💡変数を使わず、その場で直接手札入力欄（手持ちの文字）を取得してクリアする
+            const targetHandInput = document.getElementById('hand-characters');
+            if (targetHandInput) {
+                targetHandInput.value = ''; // 👈 テストの時はここを 'あ' などに変えれば100%画面に反映されます！
+            }
+         
         wallPosition = 0;
         if (wallOptions) {
             wallOptions.querySelectorAll('.wall-btn').forEach(b => {
