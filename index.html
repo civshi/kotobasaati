@@ -524,18 +524,22 @@ let kotodamanWords = [];
         });
     });
 
+    // 🛠️ クリアボタンの挙動を調整（手札もリアルタイムにリセット）
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
-            inputs.forEach(input => input.value = '');
-            wallPosition = 0;
-            if (wallOptions) {
-                wallOptions.querySelectorAll('.wall-btn').forEach(b => {
-                    if(b.dataset.wall === "0") b.classList.add('active');
-                    else b.classList.remove('active');
-                });
-            }
-            if (inputs[0]) inputs[0].focus(); // 1番目のマスに安全にフォーカス
-            searchWords();
+        inputs.forEach(input => input.value = '');
+        if (handCharactersInput) {
+            handCharactersInput.value = ''; // 手札の文字をクリア
+        }   
+        wallPosition = 0;
+        if (wallOptions) {
+            wallOptions.querySelectorAll('.wall-btn').forEach(b => {
+            if(b.dataset.wall === "0") b.classList.add('active');
+            else b.classList.remove('active');
+        });
+        }
+        searchWords(); // クリアされた状態で再計算
+        if (inputs.length > 0) inputs[0].focus(); // 最初のマスに安全にフォーカスを戻す
         });
     }
 
