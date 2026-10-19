@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>コトダマン 7文字盤面検索</title>
+    <title>コトバ検索</title>
     <style>
         :root {
             --primary-color: #ff9800; /* コトダマンオレンジ */
@@ -214,12 +214,18 @@
             font-weight: bold;
             flex-shrink: 0;
         }
+
+        .word-text .highlight {
+            color: var(--primary-color); /* コトダマンオレンジに変える */
+            font-weight: 900;            /* さらに太字にして目立たせる */
+            text-shadow: 0 0 5px rgba(255, 152, 0, 0.6); /* ほんのり光らせる */
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>コトダマン 7文字盤面検索</h1>
+    <h1>コトバ検索</h1>
     
     <div class="search-box">
         <div class="label-row">
@@ -250,6 +256,11 @@
                 <div class="wall-btn" data-wall="7">7</div>
             </div>
         </div>
+    </div>
+
+　　<div class="hand-input-row" style="margin-top: 10px;">
+        <label style="display: block; margin-bottom: 4px;">手持ちの文字（例: あいかうお）</label>
+        <input type="text" id="hand-characters" placeholder="手札の文字を続けて入力" style="width: 100%; padding: 8px; border-radius: 6px; background: #0f172a; color: #fff; border: 1px solid var(--border-color); font-size: 0.9rem;">
     </div>
 
     <!-- 左右2つの別枠リストエリア -->
@@ -333,7 +344,7 @@ let kotodamanWords = [];
         const matchedWords = rawStringData.match(/[ぁ-んァ-ヶーa-zA-Z0-9]+/g);
         kotodamanWords = matchedWords ? [...new Set(matchedWords.map(w => w.trim()))].filter(Boolean) : [];
         
-        if (statusLabel) statusLabel.textContent = `盤面の文字を入力（データ: ${kotodamanWords.length.toLocaleString()}語）`;
+        if (statusLabel) statusLabel.textContent = `盤面の文字を入力`;
     }
 
     // 🔍 左右別枠・同時検索ロジック（壁文字共有版）
@@ -442,9 +453,28 @@ let kotodamanWords = [];
         words.forEach(word => {
             const li = document.createElement('li');
             li.className = 'word-item';
-            li.innerHTML = `<span class="word-text">${word}</span><span class="word-length">${word.length}文字</span>`;
-            targetList.appendChild(li);
+    
+            // 💡手持ち文字の入力値を取得（例: "あいう"）
+            const handInput = document.getElementById('hand-characters')?.value.trim() || '';
+    
+            // 1文字ずつに分解して、該当文字を <span class="highlight">文字</span> に置き換える
+            let highlightedWord = word;
+            if (handInput.length > 0) {
+             // 手札にある文字をループでチェックして置換
+             // ※重複や特殊文字を考慮し、安全に1文字ずつ置換するロジックを通します
+             const targetChars = [...new Set(handInput.split(''))]; // 重複を除去
+            targetChars.forEach(char => {
+            if (char === '') return;
+            // 全ての一致する文字をハイライトタグに置き換え
+            const regex = new RegExp(char, 'g');
+            highlightedWord = highlightedWord.replace(regex, `<span class="highlight">${char}</span>`);
         });
+    }
+    
+    // 💡置き換えたHTML（HTMLタグが含まれるため innerHTML）をセットする
+    li.innerHTML = `<span class="word-text">${highlightedWord}</span><span class="word-length">${word.length}文字</span>`;
+    targetList.appendChild(li);
+    });
     }
 
     if (wallOptions) {
@@ -508,6 +538,8 @@ let kotodamanWords = [];
             searchWords();
         });
     }
+
+    document.getElementById('hand-characters')?.addEventListener('input', searchWords);
 
     initApp();
     searchWords();
