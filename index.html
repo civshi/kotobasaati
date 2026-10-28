@@ -220,6 +220,11 @@
             font-weight: 900;            /* さらに太字にして目立たせる */
             text-shadow: 0 0 5px rgba(255, 152, 0, 0.6); /* ほんのり光らせる */
         }
+        
+        .board-gray {
+        color: #94a3b8 !important;
+        text-shadow: none !important;
+        }
     </style>
 </head>
 <body>
@@ -370,7 +375,7 @@ let kotodamanWords = [];
         // 壁がない（単一エリア）の場合
         if (wallPosition === 0) {
             const filtered = getMatchingWordsForArea(rawPattern, 0, 6);
-            filtered.sort((a, b) => b.length - a.length);
+            filtered.sort((a, b) => b.word.length - a.word.length);
             renderResults(filtered.slice(0, 100), 'left', filtered.length);
             return;
         }
@@ -384,11 +389,11 @@ let kotodamanWords = [];
 
         // 1. 左側エリアの計算
         const leftFiltered = getMatchingWordsForArea(rawPattern, leftStartIndex, leftEndIndex);
-        leftFiltered.sort((a, b) => b.length - a.length);
+        leftFiltered.sort((a, b) => b.word.length - a.word.length);
 
         // 2. 右側エリアの計算
         const rightFiltered = getMatchingWordsForArea(rawPattern, rightStartIndex, rightEndIndex);
-        rightFiltered.sort((a, b) => b.length - a.length);
+        rightFiltered.sort((a, b) => b.word.length - a.word.length);
 
         // 3. それぞれの枠に別々に描画する
         renderResults(leftFiltered.slice(0, 100), 'left', leftFiltered.length);
@@ -428,54 +433,77 @@ let kotodamanWords = [];
 
                 // 矛盾がなく、かつ最低1文字以上は入力された文字を掠めている場合ヒット
                 if (isMatch && matchInputCount > 0) {
-                    results.push(word);
+                    results.push({
+                    word: word,
+                    startIndex: startIndex + shift
+                    });
                     break; 
                 }
             }
         }
-        return [...new Set(results)]; // 重複を除去
+        return results.filter((item, index, self) =>
+         self.findIndex(other => other.word === item.word) === index
+        );
     }
 
     // 検索結果を画面に描画する処理
-    function renderResults(words, side, totalCount = 0) {
-        const targetList = side === 'left' ? leftWordList : rightWordList;
-        const targetCount = side === 'left' ? leftCountSpan : rightCountSpan;
-        
-        if (!targetList) return;
-        targetList.innerHTML = '';
-        if (targetCount) targetCount.textContent = totalCount;
+    function renderResults(items, side, totalCount = 0) {
+    const targetList = side === 'left' ? leftWordList : rightWordList;
+    const targetCount = side === 'left' ? leftCountSpan : rightCountSpan;
 
-        if (words.length === 0) {
-            targetList.innerHTML = '<li class="word-item" style="color: var(--text-muted); justify-content: center; font-size:0.85rem;">なし</li>';
-            return;
+    if (!targetList) return;
+
+    targetList.innerHTML = '';
+    if (targetCount) targetCount.textContent = totalCount;
+
+    if (items.length === 0) {
+        targetList.innerHTML =
+            '<li class="word-item" style="color: var(--text-muted); justify-content: center; font-size:0.85rem;">なし</li>';
+        return;
+    }
+
+    const boardChars = inputs.map(input => input.value.trim());
+    const handInput =
+        document.getElementById('hand-characters')?.value.trim() || '';
+
+    items.forEach(item => {
+        const word = typeof item === 'string' ? item : item.word;
+        const wordStart = typeof item === 'string' ? 0 : item.startIndex;
+
+        const li = document.createElement('li');
+        li.className = 'word-item';
+
+        const wordSpan = document.createElement('span');
+        wordSpan.className = 'word-text';
+
+        for (let i = 0; i < word.length; i++) {
+            const char = word[i];
+            const boardIndex = wordStart + i;
+            const boardChar = boardChars[boardIndex] || '';
+
+            const span = document.createElement('span');
+            span.textContent = char;
+
+            if (boardChar !== '' && boardChar === char) {
+                span.className = 'board-gray';
+            } else if (handInput.includes(char)) {
+                span.className = 'highlight';
+            }
+
+            wordSpan.appendChild(span);
         }
 
-        words.forEach(word => {
-            const li = document.createElement('li');
-            li.className = 'word-item';
-    
-            // 💡手持ち文字の入力値を取得（例: "あいう"）
-            const handInput = document.getElementById('hand-characters')?.value.trim() || '';
-    
-            // 1文字ずつに分解して、該当文字を <span class="highlight">文字</span> に置き換える
-            let highlightedWord = word;
-            if (handInput.length > 0) {
-             // 手札にある文字をループでチェックして置換
-             // ※重複や特殊文字を考慮し、安全に1文字ずつ置換するロジックを通します
-             const targetChars = [...new Set(handInput.split(''))]; // 重複を除去
-            targetChars.forEach(char => {
-            if (char === '') return;
-            // 全ての一致する文字をハイライトタグに置き換え
-            const regex = new RegExp(char, 'g');
-            highlightedWord = highlightedWord.replace(regex, `<span class="highlight">${char}</span>`);
-        });
-    }
-    
-    // 💡置き換えたHTML（HTMLタグが含まれるため innerHTML）をセットする
-    li.innerHTML = `<span class="word-text">${highlightedWord}</span><span class="word-length">${word.length}文字</span>`;
-    targetList.appendChild(li);
+        const lengthSpan = document.createElement('span');
+        lengthSpan.className = 'word-length';
+        lengthSpan.textContent = `${word.length}文字`;
+
+        li.appendChild(wordSpan);
+        li.appendChild(lengthSpan);
+        targetList.appendChild(li);
     });
-    }
+}
+
+
 
     if (wallOptions) {
         wallOptions.addEventListener('click', (e) => {
